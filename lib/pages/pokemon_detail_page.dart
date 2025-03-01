@@ -60,18 +60,22 @@ class _PokemonDetailPageState extends State<PokemonDetailPage>
 
   void _parseEvolutionChain(Map<String, dynamic> chain) {
     List<Map<String, dynamic>> evolutions = [];
-    Map<String, dynamic>? current = chain; // Declare current como anulável
+    Map<String, dynamic>? current = chain;
 
     while (current != null) {
+      // Extrai a URL correta do Pokémon
+      final speciesUrl = current['species']['url'];
+      final pokemonUrl = speciesUrl.replaceFirst('pokemon-species', 'pokemon');
+
       evolutions.add({
         'name': current['species']['name'],
-        'url': 'https://pokeapi.co/api/v2/pokemon/${current['species']['name']}',
+        'url': pokemonUrl, // Usa a URL correta
       });
 
       if (current['evolves_to'].isNotEmpty) {
-        current = current['evolves_to'][0]; // Atualiza current para o próximo Pokémon na cadeia
+        current = current['evolves_to'][0];
       } else {
-        current = null; // Agora é permitido, pois current é anulável
+        current = null;
       }
     }
 
@@ -93,7 +97,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage>
         : 'normal';
 
     return Scaffold(
-      backgroundColor: _getTypeColor(primaryType).withOpacity(0.8),
+      backgroundColor: Colors.red.withOpacity(0.8), // Cor de fundo vermelha
       appBar: AppBar(
         title: Text(
           _capitalizeName(widget.pokemon.name),
@@ -497,91 +501,86 @@ class _PokemonDetailPageState extends State<PokemonDetailPage>
   }
 
   // ================== ABA DE EVOLUÇÕES ==================
-
   Widget _buildEvolutionsTab() {
-    // Filtra a lista de evoluções para remover o Pokémon atual
-    final filteredEvolutions = evolutionChain
-        .where((evolution) => evolution['name'] != widget.pokemon.name)
-        .toList();
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Evoluções:",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          if (filteredEvolutions.isNotEmpty)
-            ...filteredEvolutions.map<Widget>((evolution) => _buildEvolutionCard(evolution))
-          else
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
             const Text(
-              "Nenhuma evolução encontrada.",
+              "Cadeia de Evolução:",
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
             ),
-        ],
+            const SizedBox(height: 10),
+            if (evolutionChain.isNotEmpty)
+              _buildEvolutionChainVisual()
+            else
+              const Text(
+                "Nenhuma evolução encontrada.",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildEvolutionChainVisual() {
+    return Column(
+      children: [
+        for (int i = 0; i < evolutionChain.length; i++)
+          Column(
+            children: [
+              _buildEvolutionCard(evolutionChain[i]),
+              if (i < evolutionChain.length - 1) // Adiciona uma seta entre os Pokémon
+                const Icon(
+                  Icons.arrow_downward,
+                  color: Colors.white,
+                  size: 32,
+                ),
+            ],
+          ),
+      ],
     );
   }
 
   Widget _buildEvolutionCard(Map<String, dynamic> evolution) {
     // Extrai o ID do Pokémon da URL
     final urlParts = evolution['url'].split('/');
-    final pokemonId = urlParts[urlParts.length - 2]; // O ID está no penúltimo segmento da URL
+    final pokemonId = urlParts[urlParts.length - 2];
 
-    // URL da imagem do Pokémon (sprite padrão)
-    final imageUrl = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/$pokemonId.png";
+    // URL da imagem do Pokémon em GIF
+    final imageUrl =
+        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/$pokemonId.gif";
 
     return Card(
       color: Colors.white.withOpacity(0.2),
-      child: ListTile(
-        leading: _buildPokemonImageWidget(imageUrl),
-        title: Text(
-          _capitalizeName(evolution['name']),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
+      child: SizedBox(
+        width: 100, // Tamanho fixo para o quadrado
+        height: 100,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const CircularProgressIndicator(color: Colors.white);
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(Icons.error, color: Colors.red);
+            },
           ),
         ),
-        onTap: () {
-          // Navega para a página de detalhes do Pokémon clicado
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PokemonDetailPage(
-                pokemon: Pokemon(name: evolution['name'], url: evolution['url']),
-              ),
-            ),
-          );
-        },
       ),
-    );
-  }
-
-  Widget _buildPokemonImageWidget(String imageUrl) {
-    return Image.network(
-      imageUrl,
-      width: 50,
-      height: 50,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        // Exibe um ícone de fallback caso a imagem não seja carregada
-        return const Icon(Icons.error, color: Colors.red);
-      },
-      loadingBuilder: (context, child, loadingProgress) {
-        // Exibe um indicador de carregamento enquanto a imagem é carregada
-        if (loadingProgress == null) return child;
-        return const CircularProgressIndicator(color: Colors.white);
-      },
     );
   }
 
