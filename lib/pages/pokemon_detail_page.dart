@@ -132,7 +132,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage>
                       isShiny = value;
                     });
                   },
-                  activeColor: Colors.red, // Cor do Switch quando ativado
+                  activeColor: Colors.white, // Cor do Switch quando ativado
                 ),
               ],
             ),
@@ -216,8 +216,8 @@ class _PokemonDetailPageState extends State<PokemonDetailPage>
 
   Widget _buildPokemonImage() {
     return Container(
-      height: 100,
-      width: 100,
+      height: 150,
+      width: 150,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.5),
         borderRadius: BorderRadius.circular(12),
@@ -516,7 +516,7 @@ class _PokemonDetailPageState extends State<PokemonDetailPage>
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 25),
             if (evolutionChain.isNotEmpty)
               _buildEvolutionChainVisual()
             else
@@ -557,9 +557,18 @@ class _PokemonDetailPageState extends State<PokemonDetailPage>
     final urlParts = evolution['url'].split('/');
     final pokemonId = urlParts[urlParts.length - 2];
 
+    // Verifica se o ID é válido
+    if (pokemonId == null || pokemonId.isEmpty) {
+      return _buildErrorPlaceholder();
+    }
+
     // URL da imagem do Pokémon em GIF
-    final imageUrl =
+    final gifUrl =
         "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/$pokemonId.gif";
+
+    // URL da imagem estática como fallback
+    final fallbackUrl =
+        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/$pokemonId.png";
 
     return Card(
       color: Colors.white.withOpacity(0.2),
@@ -569,14 +578,30 @@ class _PokemonDetailPageState extends State<PokemonDetailPage>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Image.network(
-            imageUrl,
+            gifUrl,
             fit: BoxFit.cover,
             loadingBuilder: (context, child, loadingProgress) {
               if (loadingProgress == null) return child;
-              return const CircularProgressIndicator(color: Colors.white);
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
             },
             errorBuilder: (context, error, stackTrace) {
-              return const Icon(Icons.error, color: Colors.red);
+              // Se o GIF falhar, tenta carregar a imagem estática
+              return Image.network(
+                fallbackUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  // Se a imagem estática também falhar, exibe um placeholder
+                  return _buildErrorPlaceholder();
+                },
+              );
             },
           ),
         ),
@@ -584,6 +609,16 @@ class _PokemonDetailPageState extends State<PokemonDetailPage>
     );
   }
 
+  // Método para exibir um placeholder de erro
+  Widget _buildErrorPlaceholder() {
+    return Center(
+      child: Icon(
+        Icons.error_outline,
+        color: Colors.red,
+        size: 40,
+      ),
+    );
+  }
   // ================== UTILIDADES ==================
   Color _getTypeColor(String type) {
     switch (type) {
